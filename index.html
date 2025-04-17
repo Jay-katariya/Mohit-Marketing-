@@ -272,25 +272,27 @@
     request.onsuccess = () => {
       const products = request.result;
       let viewerHTML = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Product Viewer</title>
+  <title>Product Catalogue</title>
   <style>
     body {
-      font-family: sans-serif;
-      background: #f0f0f0;
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
-      padding: 1rem;
+      background: #e0f7fa;
     }
-    h1 {
+    header {
+      background-color: lawnGreen;
+      color: black;
+      padding: 1rem;
       text-align: center;
       font-size: 1.8rem;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 1rem;
       padding: 1rem;
     }
@@ -298,7 +300,7 @@
       background: white;
       border-radius: 10px;
       overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       display: flex;
       flex-direction: column;
     }
@@ -307,37 +309,51 @@
       height: 160px;
       object-fit: cover;
     }
-    .product h2 {
-      font-size: 1rem;
-      margin: 0.5rem;
+    .product-info {
+      padding: 0.8rem;
     }
-    .product p {
-      font-size: 0.85rem;
-      margin: 0 0.5rem 0.5rem;
+    .product-info h2 {
+      font-size: 1.1rem;
+      margin: 0 0 0.5rem;
     }
-    .product strong {
+    .product-info p {
+      font-size: 0.9rem;
+      margin: 0.3rem 0;
+    }
+    .product-info strong {
+      display: block;
+      margin-top: 0.5rem;
       font-size: 1rem;
+      color: #222;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      background-color: #f1f1f1;
+      font-size: 0.9rem;
       color: #333;
-      margin: 0 0.5rem 0.8rem;
     }
   </style>
 </head>
 <body>
-  <h1>Product Catalogue</h1>
+  <header>Product Catalogue</header>
   <div class="grid">`;
 
       for (const p of products) {
         viewerHTML += `
     <div class="product">
       <img src="${p.image}" alt="${p.name}">
-      <h2>${p.name}</h2>
-      <p>${p.description}</p>
-      <strong>₹${p.price}</strong>
+      <div class="product-info">
+        <h2>${p.name}</h2>
+        <p>${p.description}</p>
+        <strong>₹${p.price}</strong>
+      </div>
     </div>`;
       }
 
       viewerHTML += `
   </div>
+  <footer>Mohit Marketing - All rights reserved.</footer>
 </body>
 </html>`;
 
