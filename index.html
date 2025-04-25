@@ -64,7 +64,7 @@
     .product-card {
       background-color: #fff;
       width: 100%;
-      max-width: 500px;
+      max-width: 300px;
       border-radius: 10px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       overflow: hidden;
@@ -101,273 +101,199 @@
   </style>
 </head>
 <body>
-<header>
-  <h1>Mohit Marketing</h1>
-  <div id="mode-buttons">
-    <button onclick="switchToViewer()">Viewer Mode</button>
-    <button onclick="switchToAdmin()">Admin Mode</button>
+  <header>
+    <h1>Mohit Marketing</h1>
+    <div id="mode-buttons">
+      <button onclick="switchToViewer()">Viewer Mode</button>
+      <button onclick="switchToAdmin()">Admin Mode</button>
+    </div>
+  </header>
+
+  <div id="admin-controls">
+    <form id="product-form" onsubmit="addProduct(event)">
+      <input type="text" id="product-name" placeholder="Product Name" required />
+      <input type="text" id="product-description" placeholder="Product Description" required />
+      <input type="number" id="product-price" placeholder="Price (₹)" required />
+      <input type="file" id="product-image" accept="image/*" required />
+      <button type="submit">Add Product</button>
+      <button type="button" onclick="downloadCatalog()">Download Catalogue</button>
+      <button type="button" onclick="downloadViewerHTML()">Download Viewer</button>
+    </form>
   </div>
-</header>
 
-<div id="admin-controls">
-  <form id="product-form" onsubmit="addProduct(event)">
-    <input type="text" id="product-name" placeholder="Product Name" required />
-    <input type="text" id="product-description" placeholder="Product Description" required />
-    <input type="number" id="product-price" placeholder="Price (₹)" required />
-    <input type="file" id="product-image" accept="image/*" required />
-    <button type="submit">Add Product</button>
-    <button type="button" onclick="downloadCatalog()">Download Catalogue</button>
-    <button type="button" onclick="downloadViewerHTML()">Download Viewer</button>
-  </form>
-</div>
+  <div class="product-list" id="product-list"></div>
 
-<div class="product-list" id="product-list"></div>
+  <footer>
+    Mohit Marketing - All rights reserved.
+  </footer>
 
-<footer>
-  Mohit Marketing - All rights reserved.
-</footer>
+  <script>
+    let isAdmin = false;
+    const DB_NAME = "ProductDB";
+    const DB_STORE = "products";
+    let db;
 
-<script>
-  let isAdmin = false;
-  const DB_NAME = "ProductDB";
-  const DB_STORE = "products";
-  let db;
+    window.onload = () => {
+      initDB();
+    };
 
-  window.onload = () => {
-    initDB();
-  };
-
-  function switchToViewer() {
-    isAdmin = false;
-    document.getElementById("admin-controls").style.display = "none";
-    renderProducts();
-  }
-
-  function switchToAdmin() {
-    const password = prompt("Enter Admin Password:");
-    if (password === "m8329684339") {
-      isAdmin = true;
-      document.getElementById("admin-controls").style.display = "block";
+    function switchToViewer() {
+      isAdmin = false;
+      document.getElementById("admin-controls").style.display = "none";
       renderProducts();
-    } else {
-      alert("Incorrect password.");
     }
-  }
 
-  function initDB() {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onerror = (e) => console.error("Error opening DB", e);
-    request.onsuccess = (e) => {
-      db = e.target.result;
-      switchToViewer();
-    };
-    request.onupgradeneeded = (e) => {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) {
-        db.createObjectStore(DB_STORE, { keyPath: "id", autoIncrement: true });
+    function switchToAdmin() {
+      const password = prompt("Enter Admin Password:");
+      if (password === "m8329684339") {
+        isAdmin = true;
+        document.getElementById("admin-controls").style.display = "block";
+        renderProducts();
+      } else {
+        alert("Incorrect password.");
       }
-    };
-  }
+    }
 
-  function addProduct(e) {
-    e.preventDefault();
-    const name = document.getElementById("product-name").value;
-    const desc = document.getElementById("product-description").value;
-    const price = document.getElementById("product-price").value;
-    const imageFile = document.getElementById("product-image").files[0];
-    if (!imageFile) return;
+    function initDB() {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onerror = (e) => console.error("Error opening DB", e);
+      request.onsuccess = (e) => {
+        db = e.target.result;
+        switchToViewer();
+      };
+      request.onupgradeneeded = (e) => {
+        db = e.target.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE, { keyPath: "id", autoIncrement: true });
+        }
+      };
+    }
 
-    const reader = new FileReader();
-    reader.onload = function () {
-      const product = { name, description: desc, price, image: reader.result };
+    function addProduct(e) {
+      e.preventDefault();
+      const name = document.getElementById("product-name").value;
+      const desc = document.getElementById("product-description").value;
+      const price = document.getElementById("product-price").value;
+      const imageFile = document.getElementById("product-image").files[0];
+      if (!imageFile) return;
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const product = { name, description: desc, price, image: reader.result };
+        const tx = db.transaction(DB_STORE, "readwrite");
+        const store = tx.objectStore(DB_STORE);
+        store.add(product);
+        tx.oncomplete = () => {
+          e.target.reset();
+          renderProducts();
+        };
+      };
+      reader.readAsDataURL(imageFile);
+    }
+
+    function renderProducts() {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const store = tx.objectStore(DB_STORE);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const products = request.result;
+        const container = document.getElementById("product-list");
+        container.innerHTML = "";
+
+        products.forEach((product) => {
+          const card = document.createElement("div");
+          card.className = "product-card";
+          card.innerHTML = `
+            <img src="${product.image}" alt="${product.name}" />
+            <div class="product-info">
+              <h3>${product.name}</h3>
+              <p>${product.description}</p>
+              <p><strong>₹${product.price}</strong></p>
+              ${isAdmin ? `
+                <div class="actions">
+                  <button onclick="editProduct(${product.id})">Edit</button>
+                  <button onclick="deleteProduct(${product.id})">Delete</button>
+                </div>
+              ` : ""}
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      };
+    }
+
+    function deleteProduct(id) {
       const tx = db.transaction(DB_STORE, "readwrite");
       const store = tx.objectStore(DB_STORE);
-      store.add(product);
-      tx.oncomplete = () => {
-        e.target.reset();
-        renderProducts();
+      store.delete(id);
+      tx.oncomplete = renderProducts;
+    }
+
+    function editProduct(id) {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const store = tx.objectStore(DB_STORE);
+      const request = store.get(id);
+
+      request.onsuccess = () => {
+        const product = request.result;
+        document.getElementById("product-name").value = product.name;
+        document.getElementById("product-description").value = product.description;
+        document.getElementById("product-price").value = product.price;
+        deleteProduct(id);
+        window.scrollTo(0, 0);
       };
-    };
-    reader.readAsDataURL(imageFile);
-  }
-
-  function renderProducts() {
-    const tx = db.transaction(DB_STORE, "readonly");
-    const store = tx.objectStore(DB_STORE);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      const products = request.result;
-      const container = document.getElementById("product-list");
-      container.innerHTML = "";
-
-      products.forEach((product) => {
-        const card = document.createElement("div");
-        card.className = "product-card";
-        card.innerHTML = `
-          <img src="${product.image}" alt="${product.name}" />
-          <div class="product-info">
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
-            <p><strong>₹${product.price}</strong></p>
-            ${isAdmin ? `
-              <div class="actions">
-                <button onclick="editProduct(${product.id})">Edit</button>
-                <button onclick="deleteProduct(${product.id})">Delete</button>
-              </div>
-            ` : ""}
-          </div>
-        `;
-        container.appendChild(card);
-      });
-    };
-  }
-
-  function deleteProduct(id) {
-    const tx = db.transaction(DB_STORE, "readwrite");
-    const store = tx.objectStore(DB_STORE);
-    store.delete(id);
-    tx.oncomplete = renderProducts;
-  }
-
-  function editProduct(id) {
-    const tx = db.transaction(DB_STORE, "readonly");
-    const store = tx.objectStore(DB_STORE);
-    const request = store.get(id);
-
-    request.onsuccess = () => {
-      const product = request.result;
-      document.getElementById("product-name").value = product.name;
-      document.getElementById("product-description").value = product.description;
-      document.getElementById("product-price").value = product.price;
-      deleteProduct(id);
-      window.scrollTo(0, 0);
-    };
-  }
-
-  function downloadCatalog() {
-    const tx = db.transaction(DB_STORE, "readonly");
-    const store = tx.objectStore(DB_STORE);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      const dataStr = JSON.stringify(request.result);
-      const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "catalogue.json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
-  }
-
-  function downloadViewerHTML() {
-    const tx = db.transaction(DB_STORE, "readonly");
-    const store = tx.objectStore(DB_STORE);
-    const request = store.getAll();
-
-    request.onsuccess = () => {
-      const products = request.result;
-      let viewerHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mohit Marketing</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      background: #e0f7fa;
     }
-    header {
-      background-color: lawnGreen;
-      color: black;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.8rem;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 1rem;
-      padding: 1rem;
-    }
-    .product {
-      background: white;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      display: flex;
-      flex-direction: column;
-    }
-    .product img {
-      width: 100%;
-      height: 250px;
-      object-fit: contain ;
-    }
-    .product-info {
-      padding: 0.8rem;
-    }
-    .product-info h2 {
-      font-size: 1.1rem;
-      margin: 0 0 0.5rem;
-    }
-    .product-info p {
-      font-size: 0.9rem;
-      margin: 0.3rem 0;
-    }
-    .product-info strong {
-      display: block;
-      margin-top: 0.5rem;
-      font-size: 1rem;
-      color: #222;
-    }
-    footer {
-      text-align: center;
-      padding: 1rem;
-      background-color: #f1f1f1;
-      font-size: 0.9rem;
-      color: #333;
-    }
-  </style>
-</head>
-<body>
-  <header>Mohit Marketing</header>
-  <div class="grid">`;
 
-      for (const p of products) {
-        viewerHTML += `
-    <div class="product">
-      <img src="${p.image}" alt="${p.name}">
-      <div class="product-info">
-        <h2>${p.name}</h2>
-        <p>${p.description}</p>
-        <strong>₹${p.price}</strong>
-      </div>
-    </div>`;
-      }
+    function downloadCatalog() {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const store = tx.objectStore(DB_STORE);
+      const request = store.getAll();
 
-      viewerHTML += `
-  </div>
-  <footer>Mohit Marketing - All rights reserved.</footer>
-</body>
-</html>`;
+      request.onsuccess = () => {
+        const dataStr = JSON.stringify(request.result);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
 
-      const blob = new Blob([viewerHTML], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "catalogue-viewer.html";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
-  }
-</script>
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "catalogue.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+    }
 
+    function downloadViewerHTML() {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const store = tx.objectStore(DB_STORE);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const products = request.result;
+        let viewerHTML = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mohit Marketing</title><style>
+body { font-family: sans-serif; background: #eee; padding: 1rem; font-size: 22px; }
+.product { background: white; margin: 1rem auto; padding: 1rem; border-radius: 10px; max-width: 600px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+img { max-width: 100%; border-radius: 8px; }
+</style></head><body><h1 style="text-align:center;">Mohit Marketing</h1>`;
+
+        for (const p of products) {
+          viewerHTML += `<div class="product"><img src="${p.image}"><h2>${p.name}</h2><p>${p.description}</p><strong>₹${p.price}</strong></div>`;
+        }
+
+        viewerHTML += `</body></html>`;
+
+        const blob = new Blob([viewerHTML], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "catalogue-viewer.html";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+    }
+  </script>
 </body>
 </html>
